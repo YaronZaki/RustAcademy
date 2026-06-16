@@ -86,7 +86,7 @@ describe("SorobanRpcService", () => {
     internals.createServer = jest.fn().mockReturnValue({
       sendTransaction: jest.fn().mockResolvedValue({
         status: "ERROR",
-        errorResult: { result: () => ({ switch: () => ({ name: "txBAD_SEQ" }) }) },
+        errorResult: { result: () => ({ switch: () => ({ name: "txBadSeq" }) }) },
       }),
     });
     await expect(service.submitTransaction(makeTx())).rejects.toThrow(
