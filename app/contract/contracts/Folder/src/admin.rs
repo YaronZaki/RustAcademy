@@ -423,12 +423,18 @@ pub fn set_per_asset_fee(
 ) -> Result<(),  RustAcademyError> {
     require_any_role(env, caller, &[Role::Admin, Role::Operator])?;
 
-    if config.fee_bps > 10_000 || config.arbiter_bps > 10_000 {
-        return Err( RustAcademyError::InvalidAmount);
-    }
+    config.validate()?;
 
     storage::set_per_asset_fee(env, &token, &config);
-    publish_per_asset_fee_set(env, token, config.fee_bps, config.arbiter_bps);
+    publish_per_asset_fee_set(
+        env,
+        token,
+        config.fee_bps,
+        config.arbiter_bps,
+        config.arbiter_fee,
+        config.platform_fee,
+        config.collector_fee,
+    );
     Ok(())
 }
 
