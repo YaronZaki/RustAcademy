@@ -8,7 +8,7 @@ import { ContractRegistryService } from '../../contracts/contract-registry.servi
 import { SorobanRpcService, SOROBAN_ERROR_CODES } from '../../transactions/soroban-rpc.service';
 import { StellarSigningService } from '../../common/stellar-signing.service';
 import { SorobanErrorCode } from '../../common/soroban-errors';
-import { RefundableEntityType } from '../../refunds/refunds.types';
+import { RefundableEntityType, RefundStatus } from '../../refunds/refunds.types';
 
 @Injectable()
 export class RefundJobHandler implements JobHandler<RefundJobPayload> {
