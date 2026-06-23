@@ -7,6 +7,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.redactSensitiveValues = redactSensitiveValues;
 exports.redactValue = redactValue;
 exports.sanitizeErrorMessage = sanitizeErrorMessage;
+exports.omitTechnicalError = omitTechnicalError;
 exports.createConfigSummary = createConfigSummary;
 /**
  * List of environment variable keys that contain sensitive information
@@ -71,21 +72,33 @@ function isSensitiveKey(key) {
 }
 /**
  * Sanitize an error message to prevent leaking sensitive configuration.
- * Removes any values that look like keys, tokens, or secrets.
+ * Removes any values that look like keys, tokens, secrets, or raw provider payloads.
  *
  * @param message - Error message to sanitize
  * @returns Sanitized error message
  */
 function sanitizeErrorMessage(message) {
-    // Remove anything that looks like a secret key (S followed by 55 base64 chars)
-    var sanitized = message.replace(/S[A-Za-z0-9+/=]{55}/g, '[REDACTED_SECRET_KEY]');
-    // Remove anything that looks like a public key (G followed by 55 base64 chars)
-    sanitized = sanitized.replace(/G[A-Za-z0-9+/=]{55}/g, '[REDACTED_PUBLIC_KEY]');
+    // Remove Supabase keys (typically start with 'eyJ') before JWT pattern
+    var sanitized = message.replace(/eyJ[A-Za-z0-9+/=]{30,}/g, '[REDACTED_JWT]');
     // Remove JWT-like tokens (three base64 segments separated by dots)
     sanitized = sanitized.replace(/[A-Za-z0-9+/=]{20,}\.[A-Za-z0-9+/=]{20,}\.[A-Za-z0-9+/=]{20,}/g, '[REDACTED_TOKEN]');
-    // Remove Supabase keys (typically start with 'eyJ')
-    sanitized = sanitized.replace(/eyJ[A-Za-z0-9+/=]{30,}/g, '[REDACTED_JWT]');
+    // Remove anything that looks like a secret key (S followed by 55 base64 chars)
+    sanitized = sanitized.replace(/S[A-Za-z0-9+/=]{55}/g, '[REDACTED_SECRET_KEY]');
+    // Remove anything that looks like a Stellar account/public key (G followed by 55 base64 chars)
+    sanitized = sanitized.replace(/G[A-Za-z0-9+/=]{55}/g, '[REDACTED_ACCOUNT_ID]');
+    // Strip raw Soroban HostError payloads — keep the error type/code but drop opaque detail blobs
+    sanitized = sanitized.replace(/HostError:\s*Error\([^)]+\)[^\n]*/g, '[REDACTED_HOST_ERROR]');
+    // Remove raw Supabase error bodies (JSON-like or URL-encoded provider payloads)
+    sanitized = sanitized.replace(/"message"\s*:\s*"[^"]{40,}"/g, '"message":"[REDACTED]"');
     return sanitized;
+}
+/**
+ * Strip the `technicalError` field from a mapped error before it reaches an API response.
+ */
+function omitTechnicalError(obj) {
+    const { technicalError: _, ...safe } = obj;
+    void _;
+    return safe;
 }
 /**
  * Create a safe config summary for logging at startup.

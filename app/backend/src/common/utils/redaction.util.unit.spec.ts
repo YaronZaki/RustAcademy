@@ -3,6 +3,7 @@ import {
   redactValue,
   sanitizeErrorMessage,
   createConfigSummary,
+  omitTechnicalError,
 } from './redaction.util';
 
 describe('Redaction Utilities', () => {
@@ -84,12 +85,26 @@ describe('Redaction Utilities', () => {
       expect(result).not.toContain('SABC');
     });
 
-    it('should redact Stellar public keys', () => {
-      // The regex requires exactly 55 chars after G for Stellar public keys
+    it('should redact Stellar public keys (account IDs)', () => {
+      // The regex requires exactly 55 chars after G for Stellar public keys / account IDs
       const message = 'Invalid address GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEF';
       const result = sanitizeErrorMessage(message);
-      expect(result).toContain('[REDACTED_PUBLIC_KEY]');
+      expect(result).toContain('[REDACTED_ACCOUNT_ID]');
       expect(result).not.toContain('GABC');
+    });
+
+    it('should redact Soroban HostError raw payloads', () => {
+      const message = 'Simulation failed: HostError: Error(Auth, NotAuthorized) with context XYZ';
+      const result = sanitizeErrorMessage(message);
+      expect(result).toContain('[REDACTED_HOST_ERROR]');
+      expect(result).not.toContain('NotAuthorized');
+      expect(result).not.toContain('HostError');
+    });
+
+    it('should redact Soroban HostError with Storage type', () => {
+      const message = 'HostError: Error(Storage, MissingValue)';
+      const result = sanitizeErrorMessage(message);
+      expect(result).toBe('[REDACTED_HOST_ERROR]');
     });
 
     it('should redact JWT tokens', () => {
@@ -151,6 +166,34 @@ describe('Redaction Utilities', () => {
 
       expect(result).toContain('2/2 required values loaded');
       expect(result).not.toContain('Missing');
+    });
+  });
+
+  describe('omitTechnicalError', () => {
+    it('removes technicalError from a mapped error object', () => {
+      const mapped = { code: 'ERR', message: 'msg', technicalError: 'raw host error' };
+      const safe = omitTechnicalError(mapped);
+      expect(safe).not.toHaveProperty('technicalError');
+      expect(safe.code).toBe('ERR');
+      expect(safe.message).toBe('msg');
+    });
+
+    it('preserves other fields', () => {
+      const mapped = {
+        code: 'CONTRACT_NOT_FOUND',
+        message: 'Not found',
+        technicalError: 'raw',
+        details: { errorType: 'Foo' },
+      };
+      const safe = omitTechnicalError(mapped);
+      expect(safe.details).toEqual({ errorType: 'Foo' });
+      expect(safe).not.toHaveProperty('technicalError');
+    });
+
+    it('is a no-op when technicalError is not present', () => {
+      const obj = { code: 'OK', message: 'fine' } as Record<string, unknown>;
+      const safe = omitTechnicalError(obj);
+      expect(safe).toEqual({ code: 'OK', message: 'fine' });
     });
   });
 });

@@ -10,6 +10,8 @@ import { ThrottlerException } from "@nestjs/throttler";
 import { Request, Response } from "express";
 import { AppConfigService } from "../../config";
 import { MetricsService } from "../../metrics/metrics.service";
+import { SorobanDomainException } from "../exceptions/soroban-domain.exception";
+import { sanitizeErrorMessage } from "../utils/redaction.util";
 
 interface ErrorResponseBody {
   success: false;
@@ -94,6 +96,22 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
         rateLimitContext.group ?? "public",
         rateLimitContext.keyType ?? "ip",
       );
+    } else if (exception instanceof SorobanDomainException) {
+      // Typed domain exception: code and message are already safe; technicalError is logged only.
+      status = exception.getStatus();
+      const body = exception.getResponse() as { code: string; message: string; details?: unknown };
+      this.logger.warn(
+        `[SorobanDomainException] ${body.code}: ${exception.technicalError}`,
+      );
+      return response.status(status).json({
+        success: false,
+        error: {
+          code: body.code,
+          message: body.message,
+          ...(correlationId ? { request_id: correlationId, correlationId } : {}),
+          ...(body.details && !isProduction ? { details: body.details } : {}),
+        },
+      });
     } else if (exception instanceof HttpException) {
       status = exception.getStatus();
       const res = exception.getResponse() as HttpExceptionResponse;
@@ -127,13 +145,14 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
         }
       }
     } else if (exception instanceof Error) {
-      message = isProduction ? "Internal server error" : exception.message;
-
-      // Log the full stack for server errors
+      // Log full error server-side; sanitize before sending to client.
       this.logger.error(
         `Unhandled exception: ${exception.message}`,
         exception.stack,
       );
+      message = isProduction
+        ? "Internal server error"
+        : sanitizeErrorMessage(exception.message);
     }
 
     const body: ErrorResponseBody = {

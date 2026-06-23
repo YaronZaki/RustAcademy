@@ -52,6 +52,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.GlobalHttpExceptionFilter = void 0;
 var common_1 = require("@nestjs/common");
 var throttler_1 = require("@nestjs/throttler");
+var soroban_domain_exception_1 = require("../exceptions/soroban-domain.exception");
+var redaction_util_1 = require("../utils/redaction.util");
 var GlobalHttpExceptionFilter = function () {
     var _classDecorators = [(0, common_1.Catch)()];
     var _classDescriptor;
@@ -91,6 +93,16 @@ var GlobalHttpExceptionFilter = function () {
                 var route = this.resolveRoute(request);
                 (_b = this.metricsService) === null || _b === void 0 ? void 0 : _b.recordRateLimitedRequest(request.method, route, (_c = rateLimitContext.group) !== null && _c !== void 0 ? _c : "public", (_d = rateLimitContext.keyType) !== null && _d !== void 0 ? _d : "ip");
             }
+            else if (exception instanceof soroban_domain_exception_1.SorobanDomainException) {
+                // Typed domain exception: code and message are already safe; technicalError is logged only.
+                status = exception.getStatus();
+                var domainBody = exception.getResponse();
+                this.logger.warn("[SorobanDomainException] ".concat(domainBody.code, ": ").concat(exception.technicalError));
+                return response.status(status).json({
+                    success: false,
+                    error: __assign(__assign({ code: domainBody.code, message: domainBody.message }, (correlationId ? { request_id: correlationId, correlationId: correlationId } : {})), (domainBody.details && !isProduction ? { details: domainBody.details } : {})),
+                });
+            }
             else if (exception instanceof common_1.HttpException) {
                 status = exception.getStatus();
                 var res = exception.getResponse();
@@ -116,9 +128,9 @@ var GlobalHttpExceptionFilter = function () {
                 }
             }
             else if (exception instanceof Error) {
-                message = isProduction ? "Internal server error" : exception.message;
-                // Log the full stack for server errors
+                // Log full error server-side; sanitize before sending to client.
                 this.logger.error("Unhandled exception: ".concat(exception.message), exception.stack);
+                message = isProduction ? "Internal server error" : (0, redaction_util_1.sanitizeErrorMessage)(exception.message);
             }
             var body = {
                 success: false,
