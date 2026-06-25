@@ -478,3 +478,27 @@ pub enum Role {
     /// Authorized to resolve disputes across escrows.
     Arbiter = 3,
 }
+
+/// Build-time manifest embedded in the WASM artifact.
+///
+/// This metadata is generated at compile time and provides deterministic
+/// correlation between deployed WASM artifacts and their source code.
+///
+/// ## Invariants
+///
+/// - `git_hash` is set to the full commit hash if available, otherwise "unknown"
+/// - `build_timestamp` is the UNIX epoch time when the WASM was built
+/// - `source_hash` is a deterministic hash of all Rust source files
+/// - `schema_version` is the manifest format version (increment on breaking changes)
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BuildManifest {
+    /// Full git commit hash of the build source.
+    pub git_hash: BytesN<32>,
+    /// Build timestamp in seconds since UNIX epoch.
+    pub build_timestamp: u64,
+    /// Hash of the source files (first 32 bytes of BLAKE3 hash).
+    pub source_hash: BytesN<32>,
+    /// Schema version for the build manifest format.
+    pub schema_version: u32,
+}
