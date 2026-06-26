@@ -27,6 +27,11 @@ package-json.lock
 /coverage
 /.nyc_output
 
+# Test snapshots
+**/__snapshots__/*
+*.snap
+test_snapshots/
+
 # IDEs and editors
 /.idea
 .project
