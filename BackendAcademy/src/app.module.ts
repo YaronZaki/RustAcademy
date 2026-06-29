@@ -16,6 +16,8 @@ import { SocialModule } from './social/social.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { LessonModule } from './lessons/lesson.module';
 import { TaskModule } from './tasks/task.module';
+import { AppConfigModule } from './config/config.module';
+import { ContractsModule } from './contracts/contracts.module';
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { TaskModule } from './tasks/task.module';
         ttl: 60_000,
       },
     ]),
+    AppConfigModule,
+    ContractsModule,
     UserProfileModule,
     TutorProfileModule,
     SubmissionModule,
