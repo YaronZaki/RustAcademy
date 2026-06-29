@@ -26,6 +26,7 @@ export class SocialService {
       moderationStatus: 'pending',
       likes: 0,
       comments: 0,
+      reposts: 0,
     };
 
     this.posts.set(post.id, post);
@@ -148,6 +149,30 @@ export class SocialService {
     return Array.from(this.posts.values()).filter(
       (post) => post.moderationStatus === 'pending',
     );
+  }
+
+  likePost(postId: string): SocialPost {
+    const post = this.getPostById(postId);
+    post.likes++;
+    post.updatedAt = new Date();
+    this.posts.set(postId, post);
+    return post;
+  }
+
+  commentOnPost(postId: string): SocialPost {
+    const post = this.getPostById(postId);
+    post.comments++;
+    post.updatedAt = new Date();
+    this.posts.set(postId, post);
+    return post;
+  }
+
+  repostPost(postId: string): SocialPost {
+    const post = this.getPostById(postId);
+    post.reposts++;
+    post.updatedAt = new Date();
+    this.posts.set(postId, post);
+    return post;
   }
 
   private generateId(): string {
